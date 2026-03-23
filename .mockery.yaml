@@ -1,0 +1,14 @@
+# with-expecter: true
+# packages:
+#   # Укажите полный путь к вашему пакету, как он написан в import
+#   github.com/Jurest/url-shortener/internal/handlers/url/save:
+#     interfaces:
+#       # Имя интерфейса, который нужно замокать
+#       URLSaver:
+#         config:
+#           # Куда положить сгенерированный файл
+#           dir: "./internal/handlers/url/save/mocks"
+#           # Имя выходного файла
+#           filename: "mock_url_saver.go"
+#           # Название пакета мока (обычно mocks)
+#           outpkg: "mocks"

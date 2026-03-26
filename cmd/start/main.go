@@ -1,14 +1,18 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
+	"strconv"
+	ssogrpc "url-shortener/internal/clients/sso/grpc"
 	"url-shortener/internal/config"
 	"url-shortener/internal/http-server/handlers/redirect"
 	"url-shortener/internal/http-server/handlers/url/delete"
 	"url-shortener/internal/http-server/handlers/url/save"
+	"url-shortener/internal/http-server/handlers/url/update"
 	"url-shortener/internal/http-server/middleware/mwLogger"
 	"url-shortener/internal/lib/logger/handlers/slogpretty"
 	"url-shortener/internal/lib/logger/sl"
@@ -36,6 +40,24 @@ func main() {
 		slog.String("version", "123"),
 	)
 	log.Debug("debug messages are enabled")
+
+	ssoClient, err := ssogrpc.New(
+		context.Background(),
+		log,
+		cfg.Clients.SSO.Address,
+		cfg.Clients.SSO.Timeout,
+		cfg.Clients.SSO.RetriesCount,
+	)
+	if err != nil {
+		log.Error("failed to init sso client", sl.Err(err))
+		os.Exit(1)
+	}
+	isAdmin, err := ssoClient.IsAdmin(context.Background(), 4)
+	if err != nil {
+		log.Error("failed to connect ssoClient or get value")
+	}
+	log.Info("check user role", slog.String("Admin", strconv.FormatBool(isAdmin)))
+
 	//init storage: sqlite
 	storage, err := sqlite.New(cfg.StoragePath)
 	if err != nil {
@@ -59,6 +81,8 @@ func main() {
 		}))
 		r.Post("/", save.New(log, storage))
 		r.Delete("/{alias}", delete.New(log, storage))
+		r.Put("/update/alias", update.NewAlias(log, storage))
+		r.Put("/update/url", update.NewURL(log, storage))
 	})
 
 	router.Get("/{alias}", redirect.New(log, storage))

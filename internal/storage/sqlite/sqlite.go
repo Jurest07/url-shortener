@@ -85,6 +85,61 @@ func (s *Storage) GetURL(alias string) (string, error) {
 	return res, nil
 }
 
+func (s *Storage) UpdateURL(oldUrl string, newAlias string) error {
+	const op = "storage.sqlite.UpdateURL"
+
+	stmt, err := s.db.Prepare("UPDATE url SET alias = ? WHERE url = ?")
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	defer stmt.Close()
+
+	res, err := stmt.Exec(newAlias, oldUrl)
+	if err != nil {
+		if sqliteErr, ok := err.(sqlite3.Error); ok && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique {
+			return fmt.Errorf("%s: %w", op, storage.ErrAliasExists)
+		}
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	rowsUpdated, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	if rowsUpdated == 0 {
+		return fmt.Errorf("%s: %w", op, storage.ErrURLNotFound)
+	}
+
+	return nil
+
+}
+
+func (s *Storage) UpdateAlias(newUrl string, alias string) error {
+	const op = "storage.sqlite.UpdateAlias"
+
+	stmt, err := s.db.Prepare("UPDATE url SET url = ? WHERE alias = ?")
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	defer stmt.Close()
+
+	res, err := stmt.Exec(newUrl, alias)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	rowsUpdated, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	if rowsUpdated == 0 {
+		return fmt.Errorf("%s: %w", op, storage.ErrAliasNotFound)
+	}
+
+	return nil
+
+}
+
 // TODO
 func (s *Storage) DeleteURL(alias string) error {
 	const op = "storage.sqlite.DeleteURL"
